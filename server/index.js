@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initDatabase, COVERS_DIR } from './db.js';
 import booksRouter from './routes/books.js';
+import itemsRouter from './routes/items.js';
 import uploadRouter from './routes/upload.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +45,7 @@ app.use('/api/covers', (req, res, next) => {
 });
 
 // API Routes
+app.use('/api/items', itemsRouter);
 app.use('/api/books', booksRouter);
 app.use('/api/upload', uploadRouter);
 

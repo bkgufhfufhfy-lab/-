@@ -1,55 +1,130 @@
 <template>
   <header class="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-6 py-4 shadow-xl">
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <!-- Brand & Version -->
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <BookOpen class="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-xl font-bold tracking-tight text-white">时光胶囊 · 藏书阁</h1>
-            <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v0.1</span>
+      <!-- Brand & Main Category Tabs -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+        <!-- Logo -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Hourglass class="w-5 h-5 text-white" />
           </div>
-          <p class="text-xs text-slate-400">完全数据本地化的个人多媒体展馆 · 书籍版</p>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-bold tracking-tight text-white">时光胶囊</h1>
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">全品类展馆</span>
+            </div>
+            <p class="text-xs text-slate-400">个人数字记忆博物馆 · 书籍 · 游戏 · 影视</p>
+          </div>
+        </div>
+
+        <!-- Main Category Nav Pills -->
+        <div class="flex items-center p-1 bg-slate-900/90 rounded-xl border border-slate-800 text-xs font-semibold">
+          <button
+            v-for="cat in categories"
+            :key="cat.value"
+            @click="$emit('update:activeCategory', cat.value)"
+            :class="[
+              'px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap',
+              activeCategory === cat.value
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                : 'text-slate-400 hover:text-slate-200'
+            ]"
+          >
+            <component :is="cat.icon" class="w-3.5 h-3.5" />
+            <span>{{ cat.label }}</span>
+          </button>
         </div>
       </div>
 
-      <!-- Quick Stats -->
-      <div v-if="stats" class="hidden lg:flex items-center gap-6 text-xs bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-2">
-        <div class="flex items-center gap-2">
-          <Library class="w-4 h-4 text-indigo-400" />
-          <span class="text-slate-400">总藏书</span>
-          <span class="font-bold text-slate-200">{{ stats.total_books || 0 }}</span>
-        </div>
-        <div class="h-3 w-px bg-slate-800"></div>
-        <div class="flex items-center gap-2">
-          <BookmarkCheck class="w-4 h-4 text-emerald-400" />
-          <span class="text-slate-400">已读完</span>
-          <span class="font-bold text-emerald-400">{{ stats.finished_count || 0 }}</span>
-        </div>
-        <div class="h-3 w-px bg-slate-800"></div>
-        <div class="flex items-center gap-2">
-          <Glasses class="w-4 h-4 text-amber-400" />
-          <span class="text-slate-400">正在读</span>
-          <span class="font-bold text-amber-400">{{ stats.reading_count || 0 }}</span>
-        </div>
-        <div class="h-3 w-px bg-slate-800"></div>
-        <div class="flex items-center gap-2">
-          <Layers class="w-4 h-4 text-cyan-400" />
-          <span class="text-slate-400">累计阅读</span>
-          <span class="font-bold text-cyan-400">{{ stats.total_pages_read || 0 }} <span class="text-[10px] font-normal text-slate-500">页</span></span>
-        </div>
+      <!-- Quick Dynamic Stats Banner -->
+      <div class="hidden lg:flex items-center gap-5 text-xs bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-2">
+        <template v-if="activeCategory === 'all'">
+          <div class="flex items-center gap-2">
+            <Layers class="w-4 h-4 text-indigo-400" />
+            <span class="text-slate-400">总藏品</span>
+            <span class="font-bold text-slate-200">{{ stats?.overall?.total_items || 0 }}</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1.5 text-slate-300">
+            <BookOpen class="w-3.5 h-3.5 text-emerald-400" />
+            <span>{{ stats?.overall?.total_books || 0 }} 本</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-slate-300">
+            <Gamepad2 class="w-3.5 h-3.5 text-cyan-400" />
+            <span>{{ stats?.overall?.total_games || 0 }} 款</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-slate-300">
+            <Film class="w-3.5 h-3.5 text-pink-400" />
+            <span>{{ stats?.overall?.total_movies || 0 }} 部</span>
+          </div>
+        </template>
+
+        <template v-else-if="activeCategory === 'book'">
+          <div class="flex items-center gap-2">
+            <BookOpen class="w-4 h-4 text-emerald-400" />
+            <span class="text-slate-400">藏书</span>
+            <span class="font-bold text-slate-200">{{ stats?.book?.total || 0 }} 本</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1.5 text-amber-400">
+            <span>正在读 {{ stats?.book?.in_progress || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-emerald-400">
+            <span>已读完 {{ stats?.book?.completed || 0 }}</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="text-cyan-400 font-bold">
+            累计阅读 {{ stats?.book?.metric_sum || 0 }} <span class="text-[10px] font-normal text-slate-500">页</span>
+          </div>
+        </template>
+
+        <template v-else-if="activeCategory === 'game'">
+          <div class="flex items-center gap-2">
+            <Gamepad2 class="w-4 h-4 text-cyan-400" />
+            <span class="text-slate-400">收录游戏</span>
+            <span class="font-bold text-slate-200">{{ stats?.game?.total || 0 }} 款</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1.5 text-amber-400">
+            <span>在玩 {{ stats?.game?.in_progress || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-emerald-400">
+            <span>已通关 {{ stats?.game?.completed || 0 }}</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="text-cyan-400 font-bold">
+            游玩总长 {{ stats?.game?.metric_sum || 0 }} <span class="text-[10px] font-normal text-slate-500">小时</span>
+          </div>
+        </template>
+
+        <template v-else-if="activeCategory === 'movie'">
+          <div class="flex items-center gap-2">
+            <Film class="w-4 h-4 text-pink-400" />
+            <span class="text-slate-400">影视藏品</span>
+            <span class="font-bold text-slate-200">{{ stats?.movie?.total || 0 }} 部</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1.5 text-amber-400">
+            <span>在追 {{ stats?.movie?.in_progress || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-emerald-400">
+            <span>已看 {{ stats?.movie?.completed || 0 }}</span>
+          </div>
+          <div class="h-3 w-px bg-slate-800"></div>
+          <div class="text-pink-400 font-bold">
+            观影时长 {{ stats?.movie?.metric_sum || 0 }} <span class="text-[10px] font-normal text-slate-500">分钟</span>
+          </div>
+        </template>
       </div>
 
-      <!-- Actions -->
+      <!-- Add Button -->
       <div class="flex items-center gap-3">
         <button
           @click="$emit('open-add-modal')"
-          class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all hover:shadow-indigo-500/40 active:scale-95 cursor-pointer"
+          class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition-all hover:shadow-indigo-500/40 active:scale-95 cursor-pointer"
         >
           <Plus class="w-4 h-4" />
-          <span>收录新书</span>
+          <span>{{ addBtnLabel }}</span>
         </button>
       </div>
     </div>
@@ -59,7 +134,7 @@
       <!-- Status Tabs -->
       <div class="flex items-center gap-1 overflow-x-auto pb-1 text-xs">
         <button
-          v-for="tab in filterTabs"
+          v-for="tab in currentStatusTabs"
           :key="tab.value"
           @click="$emit('update:status', tab.value)"
           :class="[
@@ -70,9 +145,6 @@
           ]"
         >
           <span>{{ tab.label }}</span>
-          <span v-if="tab.count !== undefined" class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400">
-            {{ tab.count }}
-          </span>
         </button>
 
         <button
@@ -96,7 +168,7 @@
           type="text"
           :value="searchQuery"
           @input="$emit('update:searchQuery', $event.target.value)"
-          placeholder="搜索书名、作者、标签..."
+          :placeholder="searchPlaceholder"
           class="w-full pl-9 pr-4 py-1.5 bg-slate-900/80 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
         />
         <button
@@ -113,22 +185,78 @@
 
 <script setup>
 import { computed } from 'vue';
-import { BookOpen, Plus, Search, Library, BookmarkCheck, Glasses, Layers, Star, X } from 'lucide-vue-next';
+import {
+  Hourglass, Plus, Search, Layers, BookOpen, Gamepad2, Film, Star, X
+} from 'lucide-vue-next';
 
 const props = defineProps({
   stats: Object,
+  activeCategory: String,
   currentStatus: String,
   searchQuery: String,
   isFavoriteOnly: Boolean
 });
 
-defineEmits(['open-add-modal', 'update:status', 'update:searchQuery', 'toggle-favorite']);
+defineEmits(['open-add-modal', 'update:activeCategory', 'update:status', 'update:searchQuery', 'toggle-favorite']);
 
-const filterTabs = computed(() => [
-  { label: '全部', value: 'all', count: props.stats?.total_books },
-  { label: '📖 正在读', value: 'reading', count: props.stats?.reading_count },
-  { label: '✅ 已读完', value: 'finished', count: props.stats?.finished_count },
-  { label: '⏳ 想读', value: 'wish', count: props.stats?.wish_count },
-  { label: '❌ 弃读', value: 'abandoned', count: props.stats?.abandoned_count }
-]);
+const categories = [
+  { label: '全部展品', value: 'all', icon: Layers },
+  { label: '藏书阁', value: 'book', icon: BookOpen },
+  { label: '游戏馆', value: 'game', icon: Gamepad2 },
+  { label: '影视厅', value: 'movie', icon: Film }
+];
+
+const addBtnLabel = computed(() => {
+  switch (props.activeCategory) {
+    case 'book': return '收录新书';
+    case 'game': return '收录游戏';
+    case 'movie': return '收录影视';
+    default: return '收录新展品';
+  }
+});
+
+const searchPlaceholder = computed(() => {
+  switch (props.activeCategory) {
+    case 'book': return '搜索书名、作者、出版社...';
+    case 'game': return '搜索游戏名、开发商、平台...';
+    case 'movie': return '搜索影视名、导演、演员...';
+    default: return '搜索作品名、创作者、标签...';
+  }
+});
+
+const currentStatusTabs = computed(() => {
+  if (props.activeCategory === 'book') {
+    return [
+      { label: '全部', value: 'all' },
+      { label: '📖 正在读', value: 'reading' },
+      { label: '✅ 已读完', value: 'finished' },
+      { label: '⏳ 想读', value: 'wish' },
+      { label: '❌ 弃读', value: 'abandoned' }
+    ];
+  } else if (props.activeCategory === 'game') {
+    return [
+      { label: '全部', value: 'all' },
+      { label: '🎮 正在通关', value: 'reading' },
+      { label: '🏆 已通关', value: 'finished' },
+      { label: '⏳ 想玩', value: 'wish' },
+      { label: '❌ 弃坑', value: 'abandoned' }
+    ];
+  } else if (props.activeCategory === 'movie') {
+    return [
+      { label: '全部', value: 'all' },
+      { label: '🍿 在追', value: 'reading' },
+      { label: '🎬 已看完', value: 'finished' },
+      { label: '⏳ 想看', value: 'wish' },
+      { label: '❌ 弃剧', value: 'abandoned' }
+    ];
+  } else {
+    return [
+      { label: '全部', value: 'all' },
+      { label: '进行中', value: 'reading' },
+      { label: '已完成', value: 'finished' },
+      { label: '想看/想玩/想读', value: 'wish' },
+      { label: '已放弃', value: 'abandoned' }
+    ];
+  }
+});
 </script>

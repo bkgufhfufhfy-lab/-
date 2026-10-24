@@ -1,12 +1,14 @@
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-    <!-- Header with Stats & Filters -->
+    <!-- Header with Category Tabs & Stats -->
     <Header
       :stats="stats"
+      :active-category="activeCategory"
       :current-status="currentStatus"
       :search-query="searchQuery"
       :is-favorite-only="isFavoriteOnly"
       @open-add-modal="openAddModal"
+      @update:active-category="handleCategoryChange"
       @update:status="handleStatusChange"
       @update:search-query="handleSearchChange"
       @toggle-favorite="toggleFavoriteFilter"
@@ -17,7 +19,7 @@
       <!-- Toolbar: View summary & Sorting -->
       <div class="flex items-center justify-between mb-6 text-xs text-slate-400">
         <div>
-          <span>共找到 <strong class="text-white">{{ books.length }}</strong> 本藏书</span>
+          <span>共收录 <strong class="text-white">{{ items.length }}</strong> 项藏品</span>
           <span v-if="searchQuery" class="ml-2 text-indigo-400 font-medium">包含关键词 “{{ searchQuery }}”</span>
         </div>
 
@@ -25,12 +27,11 @@
           <label class="hidden sm:inline">排序方式:</label>
           <select
             v-model="currentSort"
-            @change="fetchBooks"
+            @change="fetchItems"
             class="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
           >
             <option value="updated_at">最近更新</option>
             <option value="rating">评分最高</option>
-            <option value="progress">阅读进度</option>
             <option value="created_at">收录时间</option>
           </select>
         </div>
@@ -39,76 +40,77 @@
       <!-- Loading State -->
       <div v-if="isLoading" class="flex flex-col items-center justify-center py-24 text-slate-500">
         <div class="w-8 h-8 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-        <p class="text-xs">正在整理藏书阁...</p>
+        <p class="text-xs">正在整理时光展馆...</p>
       </div>
 
       <!-- Empty State -->
       <div
-        v-else-if="books.length === 0"
+        v-else-if="items.length === 0"
         class="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto my-12 border border-slate-800/80 space-y-4"
       >
         <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
-          <BookOpen class="w-8 h-8" />
+          <Hourglass class="w-8 h-8" />
         </div>
         <div>
-          <h3 class="text-base font-bold text-white">暂无匹配藏书</h3>
+          <h3 class="text-base font-bold text-white">暂无匹配展品</h3>
           <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-            {{ searchQuery ? '未找到相关书籍，换个搜索词试试？' : '你的私人藏书阁目前还是空的，开始收录你的第一部作品吧！' }}
+            {{ searchQuery ? '未找到相关作品，换个关键词试试？' : '当前展馆还是空的，点击下方按钮收录你的第一部作品吧！' }}
           </p>
         </div>
 
         <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             @click="openAddModal"
-            class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
+            class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <Plus class="w-4 h-4" />
-            <span>收录第一本书</span>
+            <span>收录第一部作品</span>
           </button>
 
           <button
-            v-if="!searchQuery && stats?.total_books === 0"
-            @click="seedSampleBooks"
+            v-if="!searchQuery && stats?.overall?.total_items === 0"
+            @click="seedSampleExhibits"
             :disabled="isSeeding"
             class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-medium bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50 transition-all cursor-pointer disabled:opacity-50"
           >
-            {{ isSeeding ? '正在载入...' : '✨ 一键导入精选示例书单' }}
+            {{ isSeeding ? '正在载入...' : '✨ 一键导入全品类典藏展品' }}
           </button>
         </div>
       </div>
 
-      <!-- Books Grid -->
+      <!-- Items Grid -->
       <div
         v-else
         class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5"
       >
-        <BookCard
-          v-for="book in books"
-          :key="book.id"
-          :book="book"
+        <ItemCard
+          v-for="item in items"
+          :key="item.id"
+          :item="item"
           @select="openDetailModal"
-          @delete="handleDeleteBook"
+          @delete="handleDeleteItem"
         />
       </div>
     </main>
 
     <!-- Detail & Edit Modal -->
-    <BookModal
-      v-if="selectedBook"
-      :book="selectedBook"
-      @close="selectedBook = null"
-      @update-book="handleUpdateBook"
-      @delete-book="handleDeleteBook"
+    <ItemModal
+      v-if="selectedItem"
+      :item="selectedItem"
+      @close="selectedItem = null"
+      @update-item="handleUpdateItem"
+      @delete-item="handleDeleteItem"
       @edit-metadata="handleOpenEditMetadata"
     />
 
     <!-- Add / Edit Form Modal -->
-    <BookFormModal
+    <ItemFormModal
       v-if="isFormModalOpen"
-      :initial-data="editingBookData"
+      :initial-data="editingItemData"
+      :default-category="activeCategory"
       @close="isFormModalOpen = false"
-      @save="handleSaveBookForm"
-      @delete="handleDeleteBookFromForm"
+      @save="handleSaveItemForm"
+      @delete="handleDeleteItemFromForm"
     />
   </div>
 </template>
@@ -116,30 +118,31 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import Header from './components/Header.vue';
-import BookCard from './components/BookCard.vue';
-import BookModal from './components/BookModal.vue';
-import BookFormModal from './components/BookFormModal.vue';
-import { BookOpen, Plus } from 'lucide-vue-next';
+import ItemCard from './components/ItemCard.vue';
+import ItemModal from './components/ItemModal.vue';
+import ItemFormModal from './components/ItemFormModal.vue';
+import { Hourglass, Plus } from 'lucide-vue-next';
 
-const books = ref([]);
+const items = ref([]);
 const stats = ref(null);
 const isLoading = ref(true);
 const isSeeding = ref(false);
 
+const activeCategory = ref('all');
 const currentStatus = ref('all');
 const searchQuery = ref('');
 const isFavoriteOnly = ref(false);
 const currentSort = ref('updated_at');
 
-const selectedBook = ref(null);
+const selectedItem = ref(null);
 const isFormModalOpen = ref(false);
-const editingBookData = ref(null);
+const editingItemData = ref(null);
 
 let searchDebounceTimer = null;
 
 async function fetchStats() {
   try {
-    const res = await fetch('/api/books/stats');
+    const res = await fetch('/api/items/stats');
     if (res.ok) {
       stats.value = await res.json();
     }
@@ -148,71 +151,78 @@ async function fetchStats() {
   }
 }
 
-async function fetchBooks() {
+async function fetchItems() {
   isLoading.value = true;
   try {
     const params = new URLSearchParams();
+    if (activeCategory.value !== 'all') params.append('category', activeCategory.value);
     if (currentStatus.value !== 'all') params.append('status', currentStatus.value);
     if (searchQuery.value.trim()) params.append('search', searchQuery.value.trim());
     if (isFavoriteOnly.value) params.append('favorite', '1');
     params.append('sort', currentSort.value);
 
-    const res = await fetch(`/api/books?${params.toString()}`);
+    const res = await fetch(`/api/items?${params.toString()}`);
     if (res.ok) {
-      books.value = await res.json();
+      items.value = await res.json();
     }
   } catch (err) {
-    console.error('Failed to fetch books:', err);
+    console.error('Failed to fetch items:', err);
   } finally {
     isLoading.value = false;
   }
 }
 
+function handleCategoryChange(cat) {
+  activeCategory.value = cat;
+  currentStatus.value = 'all'; // reset status filter when category switches
+  fetchItems();
+}
+
 function handleStatusChange(newStatus) {
   currentStatus.value = newStatus;
-  fetchBooks();
+  fetchItems();
 }
 
 function handleSearchChange(query) {
   searchQuery.value = query;
   clearTimeout(searchDebounceTimer);
   searchDebounceTimer = setTimeout(() => {
-    fetchBooks();
+    fetchItems();
   }, 250);
 }
 
 function toggleFavoriteFilter() {
   isFavoriteOnly.value = !isFavoriteOnly.value;
-  fetchBooks();
+  fetchItems();
 }
 
 function openAddModal() {
-  editingBookData.value = null;
+  editingItemData.value = null;
   isFormModalOpen.value = true;
 }
 
-async function openDetailModal(book) {
+async function openDetailModal(item) {
   try {
-    const res = await fetch(`/api/books/${book.id}`);
+    const res = await fetch(`/api/items/${item.id}`);
     if (res.ok) {
-      selectedBook.value = await res.json();
+      selectedItem.value = await res.json();
     } else {
-      selectedBook.value = book;
+      selectedItem.value = item;
     }
   } catch {
-    selectedBook.value = book;
+    selectedItem.value = item;
   }
 }
 
-function handleOpenEditMetadata(book) {
-  editingBookData.value = { ...book };
+function handleOpenEditMetadata(item) {
+  editingItemData.value = { ...item };
   isFormModalOpen.value = true;
 }
 
-async function handleSaveBookForm(formData) {
+async function handleSaveItemForm(formData) {
   try {
     const isEdit = !!formData.id;
-    const url = isEdit ? `/api/books/${formData.id}` : '/api/books';
+    const url = isEdit ? `/api/items/${formData.id}` : '/api/items';
     const method = isEdit ? 'PUT' : 'POST';
 
     const res = await fetch(url, {
@@ -223,11 +233,10 @@ async function handleSaveBookForm(formData) {
 
     if (res.ok) {
       isFormModalOpen.value = false;
-      await fetchBooks();
+      await fetchItems();
       await fetchStats();
 
-      // If we were editing the selected book in detail modal, refresh it
-      if (selectedBook.value && selectedBook.value.id === formData.id) {
+      if (selectedItem.value && selectedItem.value.id === formData.id) {
         openDetailModal(formData);
       }
     } else {
@@ -235,57 +244,91 @@ async function handleSaveBookForm(formData) {
       alert('保存失败: ' + (err.error || '未知错误'));
     }
   } catch (err) {
-    console.error('Failed to save book:', err);
+    console.error('Failed to save item:', err);
     alert('保存异常: ' + err.message);
   }
 }
 
-async function handleUpdateBook(updatePayload) {
+async function handleUpdateItem(updatePayload) {
   try {
-    const res = await fetch(`/api/books/${updatePayload.id}`, {
+    const res = await fetch(`/api/items/${updatePayload.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatePayload)
     });
 
     if (res.ok) {
-      // Update selected book locally
-      if (selectedBook.value && selectedBook.value.id === updatePayload.id) {
-        Object.assign(selectedBook.value, updatePayload);
+      if (selectedItem.value && selectedItem.value.id === updatePayload.id) {
+        Object.assign(selectedItem.value, updatePayload);
       }
-      await fetchBooks();
+      await fetchItems();
       await fetchStats();
     }
   } catch (err) {
-    console.error('Failed to update book:', err);
+    console.error('Failed to update item:', err);
   }
 }
 
-async function handleDeleteBook(bookId) {
+async function handleDeleteItem(itemId) {
   try {
-    const res = await fetch(`/api/books/${bookId}`, {
+    const res = await fetch(`/api/items/${itemId}`, {
       method: 'DELETE'
     });
     if (res.ok) {
-      selectedBook.value = null;
-      await fetchBooks();
+      selectedItem.value = null;
+      await fetchItems();
       await fetchStats();
     }
   } catch (err) {
-    console.error('Failed to delete book:', err);
+    console.error('Failed to delete item:', err);
   }
 }
 
-async function handleDeleteBookFromForm(bookId) {
-  await handleDeleteBook(bookId);
+async function handleDeleteItemFromForm(itemId) {
+  await handleDeleteItem(itemId);
   isFormModalOpen.value = false;
 }
 
-// Seed helper for quick demonstration
-async function seedSampleBooks() {
+// Seed helper for quick 3-category demonstration
+async function seedSampleExhibits() {
   isSeeding.value = true;
   const samples = [
     {
+      category: "game",
+      title: "黑神话：悟空",
+      original_title: "Black Myth: Wukong",
+      platform: "PC / Steam",
+      developer: "游戏科学 Game Science",
+      publisher: "Game Science",
+      publish_date: "2024-08-20",
+      play_time_hours: 58,
+      status: "finished",
+      rating: 10,
+      favorite: 1,
+      summary: "《黑神话：悟空》是由游戏科学开发的西游题材动作角色扮演游戏。玩家将扮演一位“天命人”，为了探寻昔日传说的真相，踏上一条充满危险与惊奇的西游之路。",
+      my_review: "踏过三千界，回首已非少年。从大圣残躯战到最终定格，东方美学与顶级动作手感的完美交融，中国单机游戏的里程碑神作！",
+      tags: ["动作RPG", "西游记", "虚幻5", "年度神作"],
+      cover_url: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&auto=format&fit=crop&q=80"
+    },
+    {
+      category: "movie",
+      title: "星际穿越",
+      original_title: "Interstellar",
+      subtype: "movie",
+      director: "克里斯托弗·诺兰",
+      actors: "马修·麦康纳, 安妮·海瑟薇, 杰西卡·查斯坦",
+      publish_date: "2014-11-07",
+      duration_minutes: 169,
+      status: "finished",
+      rating: 10,
+      favorite: 1,
+      summary: "在不远的未来，地球环境恶化导致粮食匮乏。前 NASA 宇航员库珀受命驾驶飞船穿越神秘虫洞，在浩瀚宇宙中为濒临灭绝的人类寻找新家园。",
+      my_review: "爱不是人类发明的东西，它跨越了维度，跨越了时间和空间。汉斯·季默的风琴配乐每次响起都会起一身鸡皮疙瘩。IMAX 视觉奇迹。",
+      tags: ["硬科幻", "虫洞理论", "诺兰", "IMAX神作"],
+      cover_url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80"
+    },
+    {
+      category: "book",
       title: "三体全集",
       original_title: "The Three-Body Problem",
       author: "刘慈欣",
@@ -300,73 +343,40 @@ async function seedSampleBooks() {
       my_review: "给岁月以文明，而不是给文明以岁月。宇宙就是一座黑暗森林，每个文明都是带枪的猎人。每次重读都会被宏大的宇宙社会学框架所震撼。",
       tags: ["硬科幻", "宇宙社会学", "经典神作"],
       cover_url: "https://images.unsplash.com/photo-1532012164546-f432f2e3777f?w=600&auto=format&fit=crop&q=80"
-    },
-    {
-      title: "百年孤独",
-      original_title: "Cien años de soledad",
-      author: "加西亚·马尔克斯",
-      translator: "范晔",
-      publisher: "南海出版公司",
-      publish_date: "2011-06",
-      total_pages: 360,
-      current_page: 245,
-      status: "reading",
-      rating: 9,
-      favorite: 1,
-      summary: "魔幻现实主义文学代表作，描写了布恩迪亚家族七代人的传奇故事，以及加勒比海沿岸小镇马孔多的百年兴衰，反映了拉丁美洲一个世纪以来风云变幻的历史。",
-      my_review: "多年以后，面对行刑队，奥雷里亚诺·布恩迪亚上校将会回想起父亲带他去见识冰块的那个遥远的下午。孤独是宿命，而文字跨越了虚实。",
-      tags: ["魔幻现实主义", "诺贝尔文学奖", "世界名著"],
-      cover_url: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80"
-    },
-    {
-      title: "纳瓦尔宝典",
-      original_title: "The Almanack of Naval Ravikant",
-      author: "埃里克·乔根森",
-      translator: "赵灿",
-      publisher: "中信出版集团",
-      publish_date: "2022-04",
-      total_pages: 264,
-      current_page: 0,
-      status: "wish",
-      rating: null,
-      favorite: 0,
-      summary: "硅谷知名天使投资人纳瓦尔关于财富创造和幸福生活的智慧结晶。阐述了如何利用专长、杠杆和判断力实现非对称收益。",
-      tags: ["思维模型", "财富", "个人成长"],
-      cover_url: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&auto=format&fit=crop&q=80"
     }
   ];
 
   try {
     for (const sample of samples) {
-      const res = await fetch('/api/books', {
+      const res = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sample)
       });
-      if (res.ok && sample.title.includes('三体')) {
+      if (res.ok) {
         const data = await res.json();
-        // Add sample quotes
-        await fetch(`/api/books/${data.id}/quotes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: "给岁月以文明，而不是给文明以岁月。",
-            page_number: 312,
-            note: "罗辑执剑人的沉思"
-          })
-        });
-        await fetch(`/api/books/${data.id}/quotes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: "弱小和无知不是生存的障碍，傲慢才是。",
-            page_number: 489,
-            note: "宇宙文明公理"
-          })
-        });
+        if (sample.category === 'game') {
+          await fetch(`/api/items/${data.id}/quotes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: "若是不甘，便拔出那根金箍棒，再翻他一个跟头！",
+              note: "天命人的执念"
+            })
+          });
+        } else if (sample.category === 'movie') {
+          await fetch(`/api/items/${data.id}/quotes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: "Do not go gentle into that good night. Rage, rage against the dying of the light.",
+              note: "布兰德教授的诗"
+            })
+          });
+        }
       }
     }
-    await fetchBooks();
+    await fetchItems();
     await fetchStats();
   } catch (err) {
     console.error('Seeding failed:', err);
@@ -376,7 +386,7 @@ async function seedSampleBooks() {
 }
 
 onMounted(() => {
-  fetchBooks();
+  fetchItems();
   fetchStats();
 });
 </script>

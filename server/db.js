@@ -28,7 +28,7 @@ db.pragma('synchronous = NORMAL');
 
 export function initDatabase() {
   const schema = `
-    -- Common item table for multi-category future expansion
+    -- Common item table for multi-category
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY NOT NULL,
       category TEXT NOT NULL CHECK(category IN ('book', 'game', 'movie', 'anime')),
@@ -36,7 +36,7 @@ export function initDatabase() {
       original_title TEXT,
       cover_asset_id TEXT,
       cover_url TEXT,
-      status TEXT NOT NULL DEFAULT 'wish' CHECK(status IN ('wish', 'reading', 'finished', 'abandoned')),
+      status TEXT NOT NULL DEFAULT 'wish',
       rating INTEGER CHECK(rating IS NULL OR (rating >= 0 AND rating <= 10)),
       favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN (0, 1)),
       summary TEXT,
@@ -59,7 +59,34 @@ export function initDatabase() {
       finish_date TEXT
     );
 
-    -- Golden quotes table
+    -- Game-specific details table
+    CREATE TABLE IF NOT EXISTS game_details (
+      item_id TEXT PRIMARY KEY NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      platform TEXT,
+      developer TEXT,
+      publisher TEXT,
+      release_date TEXT,
+      play_time_hours REAL DEFAULT 0,
+      expected_hours REAL,
+      clear_date TEXT,
+      achievement_status TEXT DEFAULT 'none'
+    );
+
+    -- Movie / Series details table
+    CREATE TABLE IF NOT EXISTS movie_details (
+      item_id TEXT PRIMARY KEY NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      subtype TEXT DEFAULT 'movie',
+      director TEXT,
+      actors TEXT,
+      release_date TEXT,
+      duration_minutes INTEGER,
+      total_episodes INTEGER DEFAULT 1,
+      current_episode INTEGER DEFAULT 1,
+      watch_platform TEXT,
+      watch_date TEXT
+    );
+
+    -- Golden quotes / Dialogue / Moments table
     CREATE TABLE IF NOT EXISTS quotes (
       id TEXT PRIMARY KEY NOT NULL,
       item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
@@ -86,7 +113,7 @@ export function initDatabase() {
   `;
 
   db.exec(schema);
-  console.log('✅ SQLite database schema verified with WAL mode and foreign key constraints.');
+  console.log('✅ SQLite database schema verified with all multi-category tables (book, game, movie).');
 }
 
 export { DATA_DIR, COVERS_DIR, DB_PATH };
