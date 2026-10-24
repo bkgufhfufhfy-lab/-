@@ -11,12 +11,16 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "lucide-vue-next": "^0.475.0",
     "multer": "^1.4.5-lts.1",
     "pinia": "^2.3.1",
-    "better-sqlite3": "^11.8.1",
     "uuid": "^11.1.0",
     "vue": "^3.5.13"
   },

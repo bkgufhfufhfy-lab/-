@@ -32,3 +32,10 @@ data/covers/*
 !data/covers/.gitkeep
 data/.env
 .env.local
+
+# Android & Mobile build artifacts
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+.gradle

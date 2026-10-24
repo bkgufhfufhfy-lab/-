@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">时光胶囊</string>
+    <string name="title_activity_main">时光胶囊</string>
+    <string name="package_name">com.timecapsule.app</string>
+    <string name="custom_url_scheme">com.timecapsule.app</string>
+</resources>
