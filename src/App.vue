@@ -87,6 +87,7 @@
           :key="book.id"
           :book="book"
           @select="openDetailModal"
+          @delete="handleDeleteBook"
         />
       </div>
     </main>
@@ -107,6 +108,7 @@
       :initial-data="editingBookData"
       @close="isFormModalOpen = false"
       @save="handleSaveBookForm"
+      @delete="handleDeleteBookFromForm"
     />
   </div>
 </template>
@@ -272,6 +274,11 @@ async function handleDeleteBook(bookId) {
   } catch (err) {
     console.error('Failed to delete book:', err);
   }
+}
+
+async function handleDeleteBookFromForm(bookId) {
+  await handleDeleteBook(bookId);
+  isFormModalOpen.value = false;
 }
 
 // Seed helper for quick demonstration

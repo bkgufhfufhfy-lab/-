@@ -52,6 +52,92 @@ router.get('/stats', (req, res) => {
   }
 });
 
+// GET /api/books/search-online
+router.get('/search-online', async (req, res) => {
+  const { keyword } = req.query;
+  if (!keyword || !keyword.trim()) {
+    return res.json([]);
+  }
+
+  const query = keyword.trim();
+  const results = [];
+  const seenTitles = new Set();
+
+  // 1. Search NeoDB
+  try {
+    const neodbRes = await fetch(
+      `https://neodb.social/api/catalog/search?query=${encodeURIComponent(query)}&category=book`,
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      }
+    );
+    if (neodbRes.ok) {
+      const neodbData = await neodbRes.json();
+      for (const item of (neodbData.data || [])) {
+        if (!item.title) continue;
+        const normalizedTitle = item.title.trim().toLowerCase();
+        seenTitles.add(normalizedTitle);
+
+        results.push({
+          title: item.title,
+          original_title: item.orig_title || '',
+          author: Array.isArray(item.author) ? item.author.join(', ') : (item.author || ''),
+          translator: Array.isArray(item.translator) ? item.translator.join(', ') : (item.translator || ''),
+          publisher: Array.isArray(item.publisher) ? item.publisher.join(', ') : (item.publisher || ''),
+          publish_date: item.pub_date || (item.year ? String(item.year) : ''),
+          isbn: item.isbn || '',
+          total_pages: item.pages ? Number(item.pages) : null,
+          summary: item.brief || '',
+          cover_url: item.cover_image_url || '',
+          source: 'NeoDB'
+        });
+      }
+    }
+  } catch (err) {
+    console.error('NeoDB online search error:', err.message);
+  }
+
+  // 2. Search Douban Suggest
+  try {
+    const doubanRes = await fetch(
+      `https://book.douban.com/j/subject_suggest?q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      }
+    );
+    if (doubanRes.ok) {
+      const doubanData = await doubanRes.json();
+      for (const item of (doubanData || [])) {
+        if (!item.title) continue;
+        const normalizedTitle = item.title.trim().toLowerCase();
+        // If not already included
+        if (!seenTitles.has(normalizedTitle)) {
+          seenTitles.add(normalizedTitle);
+          results.push({
+            title: item.title,
+            original_title: '',
+            author: item.author_name || '',
+            translator: '',
+            publisher: '',
+            publish_date: item.year || '',
+            isbn: '',
+            total_pages: null,
+            summary: '',
+            cover_url: item.pic || '',
+            source: '豆瓣'
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Douban online search error:', err.message);
+  }
+
+  res.json(results.slice(0, 8));
+});
+
 // GET /api/books
 router.get('/', (req, res) => {
   try {

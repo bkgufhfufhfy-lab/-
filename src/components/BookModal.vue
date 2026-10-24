@@ -31,6 +31,16 @@
             <Edit3 class="w-4 h-4" />
             <span>编辑信息</span>
           </button>
+
+          <!-- Delete Button (Prominent) -->
+          <button
+            @click="confirmDelete"
+            class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all text-xs font-medium flex items-center gap-1.5 cursor-pointer ml-1"
+            title="从藏书阁中删除此书"
+          >
+            <Trash2 class="w-4 h-4" />
+            <span>删除</span>
+          </button>
         </div>
 
         <button

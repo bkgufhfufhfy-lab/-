@@ -12,6 +12,7 @@
         :alt="book.title"
         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         loading="lazy"
+        referrerpolicy="no-referrer"
         @error="imgError = true"
       />
       <div v-if="!coverSrc || imgError" class="w-full h-full p-6 flex flex-col items-center justify-center text-center bg-gradient-to-br from-slate-900 to-indigo-950/40">
@@ -23,25 +24,36 @@
       <!-- Book Spine Reflection Effect -->
       <div class="absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-black/40 via-white/10 to-transparent pointer-events-none"></div>
 
-      <!-- Top Overlay Badges -->
-      <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+      <!-- Top Overlay Badges & Quick Delete Button -->
+      <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
         <!-- Status Badge -->
         <span
           :class="[
-            'text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-md backdrop-blur-md border',
+            'text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-md backdrop-blur-md border pointer-events-none',
             statusConfig.badgeClass
           ]"
         >
           {{ statusConfig.label }}
         </span>
 
-        <!-- Favorite Star -->
-        <span
-          v-if="book.favorite"
-          class="w-6 h-6 rounded-full bg-amber-500/90 text-white flex items-center justify-center shadow-lg shadow-amber-500/30"
-        >
-          <Star class="w-3.5 h-3.5 fill-current" />
-        </span>
+        <div class="flex items-center gap-1.5">
+          <!-- Favorite Star -->
+          <span
+            v-if="book.favorite"
+            class="w-6 h-6 rounded-full bg-amber-500/90 text-white flex items-center justify-center shadow-lg shadow-amber-500/30 pointer-events-none"
+          >
+            <Star class="w-3.5 h-3.5 fill-current" />
+          </span>
+
+          <!-- Quick Delete Button (Appears on Hover) -->
+          <button
+            @click.stop="handleQuickDelete"
+            class="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-full bg-slate-900/90 hover:bg-rose-600 text-slate-400 hover:text-white flex items-center justify-center shadow-lg backdrop-blur-md border border-slate-700 hover:border-rose-500 transition-all cursor-pointer"
+            title="删除此书"
+          >
+            <Trash2 class="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       <!-- Quotes Count Floating Badge -->
@@ -117,7 +129,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { BookOpen, Star, Quote } from 'lucide-vue-next';
+import { BookOpen, Star, Quote, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps({
   book: {
@@ -126,7 +138,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(['select']);
+const emit = defineEmits(['select', 'delete']);
 
 const imgError = ref(false);
 
@@ -158,6 +170,12 @@ const statusConfig = computed(() => {
       return { label: props.book.status, badgeClass: 'bg-slate-800 text-slate-400 border-slate-700' };
   }
 });
+
+function handleQuickDelete() {
+  if (confirm(`确定要从藏书阁中删除《${props.book.title}》吗？`)) {
+    emit('delete', props.book.id);
+  }
+}
 
 function formatRelativeTime(dateStr) {
   if (!dateStr) return '';

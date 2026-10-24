@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { COVERS_DIR } from '../db.js';
 
@@ -36,6 +37,7 @@ const upload = multer({
   }
 });
 
+// Upload local file
 router.post('/', upload.single('cover'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No image file uploaded' });
@@ -45,6 +47,48 @@ router.post('/', upload.single('cover'), (req, res) => {
     asset_id: req.file.filename,
     url: `/api/covers/${req.file.filename}`
   });
+});
+
+// Download remote image and store locally (Local-First)
+router.post('/remote', async (req, res) => {
+  const { url } = req.body;
+  if (!url || !url.startsWith('http')) {
+    return res.status(400).json({ error: 'Valid URL is required' });
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://douban.com'
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(400).json({ error: 'Failed to download image from source' });
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    let ext = '.jpg';
+    if (contentType.includes('png')) ext = '.png';
+    else if (contentType.includes('webp')) ext = '.webp';
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const safeName = `${uuidv4()}${ext}`;
+    const targetPath = path.join(COVERS_DIR, safeName);
+
+    await fs.promises.writeFile(targetPath, buffer);
+
+    res.json({
+      asset_id: safeName,
+      url: `/api/covers/${safeName}`
+    });
+  } catch (err) {
+    console.error('Remote image download error:', err);
+    res.status(500).json({ error: 'Failed to download remote cover' });
+  }
 });
 
 export default router;
