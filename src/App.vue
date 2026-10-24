@@ -15,16 +15,25 @@
     />
 
     <!-- Main Content Area -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
-      <!-- Toolbar: View summary & Sorting -->
-      <div class="flex items-center justify-between mb-6 text-xs text-slate-400">
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <!-- Toolbar: View summary & Sorting & Mobile iOS Info -->
+      <div class="flex items-center justify-between mb-4 sm:mb-6 text-xs text-slate-400">
         <div>
           <span>共收录 <strong class="text-white">{{ items.length }}</strong> 项藏品</span>
-          <span v-if="searchQuery" class="ml-2 text-indigo-400 font-medium">包含关键词 “{{ searchQuery }}”</span>
+          <span v-if="searchQuery" class="ml-2 text-indigo-400 font-medium">包含 “{{ searchQuery }}”</span>
         </div>
 
-        <div class="flex items-center gap-3">
-          <label class="hidden sm:inline">排序方式:</label>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Backup Export Button -->
+          <button
+            @click="exportLocalData"
+            class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer"
+            title="将数据导出为 JSON 备份"
+          >
+            备份数据
+          </button>
+
+          <label class="hidden sm:inline">排序:</label>
           <select
             v-model="currentSort"
             @change="fetchItems"
@@ -46,7 +55,7 @@
       <!-- Empty State -->
       <div
         v-else-if="items.length === 0"
-        class="glass-card rounded-3xl p-12 text-center max-w-lg mx-auto my-12 border border-slate-800/80 space-y-4"
+        class="glass-card rounded-3xl p-8 sm:p-12 text-center max-w-lg mx-auto my-8 sm:my-12 border border-slate-800/80 space-y-4"
       >
         <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
           <Hourglass class="w-8 h-8" />
@@ -68,7 +77,7 @@
           </button>
 
           <button
-            v-if="!searchQuery && stats?.overall?.total_items === 0"
+            v-if="!searchQuery && (!stats?.overall?.total_items || stats.overall.total_items === 0)"
             @click="seedSampleExhibits"
             :disabled="isSeeding"
             class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-medium bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50 transition-all cursor-pointer disabled:opacity-50"
@@ -81,7 +90,7 @@
       <!-- Items Grid -->
       <div
         v-else
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5"
+        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-5"
       >
         <ItemCard
           v-for="item in items"
@@ -92,6 +101,13 @@
         />
       </div>
     </main>
+
+    <!-- Mobile Bottom Tab Navigation for iPhone -->
+    <MobileBottomNav
+      :active-category="activeCategory"
+      @select-category="handleCategoryChange"
+      @open-add="openAddModal"
+    />
 
     <!-- Detail & Edit Modal -->
     <ItemModal
@@ -121,7 +137,11 @@ import Header from './components/Header.vue';
 import ItemCard from './components/ItemCard.vue';
 import ItemModal from './components/ItemModal.vue';
 import ItemFormModal from './components/ItemFormModal.vue';
+import MobileBottomNav from './components/MobileBottomNav.vue';
 import { Hourglass, Plus } from 'lucide-vue-next';
+import {
+  apiFetchItems, apiFetchItemById, apiSaveItem, apiDeleteItem, exportLocalData
+} from './storage.js';
 
 const items = ref([]);
 const stats = ref(null);
@@ -161,10 +181,7 @@ async function fetchItems() {
     if (isFavoriteOnly.value) params.append('favorite', '1');
     params.append('sort', currentSort.value);
 
-    const res = await fetch(`/api/items?${params.toString()}`);
-    if (res.ok) {
-      items.value = await res.json();
-    }
+    items.value = await apiFetchItems(params);
   } catch (err) {
     console.error('Failed to fetch items:', err);
   } finally {
@@ -174,7 +191,7 @@ async function fetchItems() {
 
 function handleCategoryChange(cat) {
   activeCategory.value = cat;
-  currentStatus.value = 'all'; // reset status filter when category switches
+  currentStatus.value = 'all';
   fetchItems();
 }
 
@@ -203,12 +220,8 @@ function openAddModal() {
 
 async function openDetailModal(item) {
   try {
-    const res = await fetch(`/api/items/${item.id}`);
-    if (res.ok) {
-      selectedItem.value = await res.json();
-    } else {
-      selectedItem.value = item;
-    }
+    const detail = await apiFetchItemById(item.id);
+    selectedItem.value = detail || item;
   } catch {
     selectedItem.value = item;
   }
@@ -221,27 +234,13 @@ function handleOpenEditMetadata(item) {
 
 async function handleSaveItemForm(formData) {
   try {
-    const isEdit = !!formData.id;
-    const url = isEdit ? `/api/items/${formData.id}` : '/api/items';
-    const method = isEdit ? 'PUT' : 'POST';
+    await apiSaveItem(formData);
+    isFormModalOpen.value = false;
+    await fetchItems();
+    await fetchStats();
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-
-    if (res.ok) {
-      isFormModalOpen.value = false;
-      await fetchItems();
-      await fetchStats();
-
-      if (selectedItem.value && selectedItem.value.id === formData.id) {
-        openDetailModal(formData);
-      }
-    } else {
-      const err = await res.json();
-      alert('保存失败: ' + (err.error || '未知错误'));
+    if (selectedItem.value && selectedItem.value.id === formData.id) {
+      openDetailModal(formData);
     }
   } catch (err) {
     console.error('Failed to save item:', err);
@@ -251,19 +250,12 @@ async function handleSaveItemForm(formData) {
 
 async function handleUpdateItem(updatePayload) {
   try {
-    const res = await fetch(`/api/items/${updatePayload.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatePayload)
-    });
-
-    if (res.ok) {
-      if (selectedItem.value && selectedItem.value.id === updatePayload.id) {
-        Object.assign(selectedItem.value, updatePayload);
-      }
-      await fetchItems();
-      await fetchStats();
+    await apiSaveItem(updatePayload);
+    if (selectedItem.value && selectedItem.value.id === updatePayload.id) {
+      Object.assign(selectedItem.value, updatePayload);
     }
+    await fetchItems();
+    await fetchStats();
   } catch (err) {
     console.error('Failed to update item:', err);
   }
@@ -271,14 +263,10 @@ async function handleUpdateItem(updatePayload) {
 
 async function handleDeleteItem(itemId) {
   try {
-    const res = await fetch(`/api/items/${itemId}`, {
-      method: 'DELETE'
-    });
-    if (res.ok) {
-      selectedItem.value = null;
-      await fetchItems();
-      await fetchStats();
-    }
+    await apiDeleteItem(itemId);
+    selectedItem.value = null;
+    await fetchItems();
+    await fetchStats();
   } catch (err) {
     console.error('Failed to delete item:', err);
   }
@@ -289,7 +277,7 @@ async function handleDeleteItemFromForm(itemId) {
   isFormModalOpen.value = false;
 }
 
-// Seed helper for quick 3-category demonstration
+// Seed helper for 3 categories
 async function seedSampleExhibits() {
   isSeeding.value = true;
   const samples = [
@@ -348,33 +336,7 @@ async function seedSampleExhibits() {
 
   try {
     for (const sample of samples) {
-      const res = await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sample)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (sample.category === 'game') {
-          await fetch(`/api/items/${data.id}/quotes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              content: "若是不甘，便拔出那根金箍棒，再翻他一个跟头！",
-              note: "天命人的执念"
-            })
-          });
-        } else if (sample.category === 'movie') {
-          await fetch(`/api/items/${data.id}/quotes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              content: "Do not go gentle into that good night. Rage, rage against the dying of the light.",
-              note: "布兰德教授的诗"
-            })
-          });
-        }
-      }
+      await apiSaveItem(sample);
     }
     await fetchItems();
     await fetchStats();

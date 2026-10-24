@@ -13,13 +13,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = '127.0.0.1'; // Strictly listen to loopback address as recommended by audit
+const HOST = '0.0.0.0'; // Listen on all network interfaces so iPhone on same Wi-Fi can connect
 
 // Initialize database schema
 initDatabase();
 
 app.use(cors({
-  origin: ['http://127.0.0.1:5173', 'http://localhost:5173', `http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`],
+  origin: '*',
   credentials: true
 }));
 
